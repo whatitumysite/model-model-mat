@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimasi Belanja Pro (Multi-Constraint)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/javascript-lp-solver/prod/solver.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-header {
+            background: linear-gradient(135deg, #059669 0%, #0891b2 100%);
+        }
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(5, 150, 105, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header Section -->
+    <header class="gradient-header text-white py-8 px-4 shadow-lg">
+        <div class="max-w-2xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                <span class="text-sm font-medium">Smart Calculator</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold mb-2">Simplex Method: Perkiraan Stok Pintar</h1>
+            <p class="text-emerald-100 text-sm md:text-base">Berdasarkan Linear Programming oleh George Dantzig (1947)</p>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <!-- Educational Section -->
+        <section class="bg-white rounded-2xl shadow-md overflow-hidden">
+            <button id="eduToggle" class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-gray-800">📚 Apa Itu Metode Simplex?</h2>
+                        <p class="text-sm text-gray-500">Klik untuk belajar lebih lanjut</p>
+                    </div>
+                </div>
+                <svg id="eduArrow" class="w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            
+            <div id="eduContent" class="hidden px-5 pb-5 space-y-4">
+                <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg">
+                    <h3 class="font-semibold text-emerald-800 mb-2">🤔 Ini Apa Sih?</h3>
+                    <p class="text-sm text-emerald-700">Metode ini seperti <strong>asisten cerdas</strong> yang menghitungkan kombinasi belanjaan paling menguntungkan ketika modal dan tempat Anda terbatas. Bayangkan punya pembantu yang jago matematika untuk bantu belanja!</p>
+                </div>
+                
+                <div class="bg-cyan-50 border-l-4 border-cyan-500 p-4 rounded-r-lg">
+                    <h3 class="font-semibold text-cyan-800 mb-2">🎯 Fungsinya Buat Apa?</h3>
+                    <p class="text-sm text-cyan-700">Untuk memastikan modal Anda diputar untuk barang yang paling <strong>"cuan"</strong> tanpa melebihi kapasitas toko/gudang. Jadi uang gak mubazir, gudang gak jebol!</p>
+                </div>
+                
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg">
+                    <h3 class="font-semibold text-amber-800 mb-2">📊 Variabel Penting:</h3>
+                    <ul class="text-sm text-amber-700 space-y-2 mt-2">
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-green-600">💰 Keuntungan:</span>
+                            <span>Berapa laba bersih yang kamu dapat per barang setelah dijual.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-red-600">💵 Modal:</span>
+                            <span>Berapa uang yang keluar dari dompet untuk beli satu barang.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-blue-600">📦 Berat/Volume:</span>
+                            <span>Berapa tempat yang "dimakan" barang tersebut di gudang atau mobil.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg">
+                    <h3 class="font-semibold text-purple-800 mb-2">🧮 Rumus Sederhananya:</h3>
+                    <div class="bg-white p-3 rounded-lg border border-purple-200 mt-2">
+                        <p class="text-sm text-purple-900 font-mono">
+                            <strong>TUJUAN:</strong> Maksimalkan Total Untung 🚀<br><br>
+                            <strong>SYARAT:</strong><br>
+                            ✅ Total Modal ≤ Isi Dompet<br>
+                            ✅ Total Berat ≤ Kapasitas Gudang
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Constraints Section -->
+        <section class="bg-white rounded-2xl shadow-md p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-gray-800">🔒 Tentukan Batasan Anda</h2>
+                    <p class="text-sm text-gray-500">Berapa kemampuan maksimal hari ini?</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Capital Input -->
+                <div class="relative">
+                    <label for="maxCapital" class="block text-sm font-semibold text-gray-700 mb-2">
+                        💰 Total Uang Belanja (Rp)
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 font-medium">Rp</span>
+                        <input 
+                            type="number" 
+                            id="maxCapital" 
+                            placeholder="Contoh: 1000000"
+                            class="w-full pl-12 pr-4 py-4 border-2 border-emerald-200 rounded-xl text-lg font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all bg-emerald-50/50"
+                        >
+                    </div>
+                </div>
+                
+                <!-- Space Input -->
+                <div class="relative">
+                    <label for="maxSpace" class="block text-sm font-semibold text-gray-700 mb-2">
+                        📦 Kapasitas Angkut/Gudang
+                    </label>
+                    <div class="relative">
+                        <input 
+                            type="number" 
+                            id="maxSpace" 
+                            placeholder="Contoh: 50"
+                            class="w-full pl-4 pr-20 py-4 border-2 border-blue-200 rounded-xl text-lg font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all bg-blue-50/50"
+                        >
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 font-medium text-sm">kg/ltr/pcs</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Items List Section -->
+        <section class="bg-white rounded-2xl shadow-md p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-gray-800">📋 Daftar Barang</h2>
+                    <p class="text-sm text-gray-500">Masukkan barang yang ingin dibeli</p>
+                </div>
+            </div>
+            
+            <div id="itemsList" class="space-y-4">
+                <!-- Items will be dynamically added here -->
+            </div>
+            
+            <button 
+                id="addItemBtn"
+                class="w-full mt-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Tambah Barang Lain
+            </button>
+        </section>
+
+        <!-- Calculate Button -->
+        <button 
+            id="calculateBtn"
+            class="w-full py-5 bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all pulse-glow flex items-center justify-center gap-3"
+        >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+            </svg>
+            Hitung Kombinasi Terbaik
+        </button>
+
+        <!-- Results Section -->
+        <section id="resultsSection" class="hidden space-y-4">
+            <!-- Success Banner -->
+            <div id="resultsBanner" class="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white rounded-2xl p-5 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-1">🎉 Solusi Optimal Ditemukan!</h3>
+                <p class="text-emerald-100 text-sm">Berikut kombinasi belanja terbaik untuk Anda</p>
+            </div>
+
+            <!-- Usage Bars -->
+            <div class="bg-white rounded-2xl shadow-md p-5 space-y-4">
+                <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                    <span>📊</span> Penggunaan Sumber Daya
+                </h4>
+                
+                <!-- Capital Usage -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="font-medium text-gray-700">💰 Uang Terpakai</span>
+                        <span id="capitalUsageText" class="font-bold text-emerald-600">Rp 0 dari Rp 0</span>
+                    </div>
+                    <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="capitalUsageBar" class="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="capitalPercent" class="text-right text-xs text-gray-500 mt-1">0%</p>
+                </div>
+                
+                <!-- Space Usage -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="font-medium text-gray-700">📦 Gudang Terpakai</span>
+                        <span id="spaceUsageText" class="font-bold text-blue-600">0 dari 0</span>
+                    </div>
+                    <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="spaceUsageBar" class="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="spacePercent" class="text-right text-xs text-gray-500 mt-1">0%</p>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="bg-white rounded-2xl shadow-md overflow-hidden">
+                <div class="p-5 border-b border-gray-100">
+                    <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                        <span>🛒</span> Daftar Belanja Optimal
+                    </h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Barang</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Qty</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Total Modal</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Total Untung</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody" class="divide-y divide-gray-100">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Total Profit -->
+            <div class="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl p-6 text-center">
+                <p class="text-amber-900 font-medium mb-1">🏆 Total Keuntungan Maksimal</p>
+                <p id="totalProfitDisplay" class="text-4xl md:text-5xl font-extrabold text-white drop-shadow-lg">Rp 0</p>
+            </div>
+
+            <!-- Items Not Selected -->
+            <div id="notSelectedSection" class="hidden bg-gray-100 rounded-2xl p-5">
+                <h4 class="font-bold text-gray-700 flex items-center gap-2 mb-3">
+                    <span>⚠️</span> Barang Tidak Terpilih
+                </h4>
+                <p class="text-sm text-gray-600 mb-3">Barang berikut tidak masuk dalam kombinasi optimal karena keterbatasan modal atau kapasitas:</p>
+                <div id="notSelectedList" class="flex flex-wrap gap-2">
+                    <!-- Dynamic tags -->
+                </div>
+            </div>
+        </section>
+
+        <!-- No Solution Section -->
+        <section id="noSolutionSection" class="hidden">
+            <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-3">
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-red-700 mb-2">😔 Tidak Ada Solusi</h3>
+                <p class="text-red-600">Modal atau kapasitas Anda tidak cukup untuk membeli satupun barang. Coba tingkatkan batasan atau kurangi modal per unit barang.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-2xl mx-auto px-4 py-8 text-center">
+        <p class="text-sm text-gray-500">
+            © Wahtitu Creativity
+        </p>
+        <p class="text-xs text-gray-400 mt-2">
+            Dibuat untuk UMKM Indonesia
+        </p>
+    </footer>
+
+    <script>
+        // ============ GLOBAL STATE ============
+        let itemCounter = 0;
+        const itemsData = new Map();
+
+        // ============ DOM ELEMENTS ============
+        const eduToggle = document.getElementById('eduToggle');
+        const eduContent = document.getElementById('eduContent');
+        const eduArrow = document.getElementById('eduArrow');
+        const itemsList = document.getElementById('itemsList');
+        const addItemBtn = document.getElementById('addItemBtn');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const noSolutionSection = document.getElementById('noSolutionSection');
+
+        // ============ HELPER FUNCTIONS ============
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(number);
+        }
+
+        function formatNumber(number) {
+            return new Intl.NumberFormat('id-ID').format(number);
+        }
+
+        // ============ EDUCATIONAL ACCORDION ============
+        eduToggle.addEventListener('click', () => {
+            const isHidden = eduContent.classList.contains('hidden');
+            eduContent.classList.toggle('hidden');
+            eduArrow.classList.toggle('rotate-180');
+        });
+
+        // ============ ITEM ROW MANAGEMENT ============
+        function createItemRow() {
+            const itemId = `item_${itemCounter++}`;
+            
+            const row = document.createElement('div');
+            row.className = 'bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-200';
+            row.dataset.itemId = itemId;
+            
+            row.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-gray-600 flex items-center gap-2">
+                        <span class="w-6 h-6 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-white text-xs">${itemCounter}</span>
+                        Barang #${itemCounter}
+                    </span>
+                    <button 
+                        type="button"
+                        class="delete-btn text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all flex items-center gap-1 text-sm font-medium"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Hapus
+                    </button>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">📦 Nama Barang</label>
+                    <input 
+                        type="text" 
+                        class="item-name w-full px-3 py-3 border border-gray-300 rounded-lg text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition-all"
+                        placeholder="Contoh: Beras Premium"
+                    >
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">💵 Modal/Unit (Rp)</label>
+                        <input 
+                            type="number" 
+                            class="item-capital w-full px-3 py-3 border border-emerald-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-emerald-50/30"
+                            placeholder="Contoh: 10000"
+                            min="0"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">💰 Untung/Unit (Rp)</label>
+                        <input 
+                            type="number" 
+                            class="item-profit w-full px-3 py-3 border border-amber-300 rounded-lg text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all bg-amber-50/30"
+                            placeholder="Contoh: 2000"
+                            min="0"
+                        >
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">📏 Berat/Ukuran per Unit</label>
+                        <input 
+                            type="number" 
+                            class="item-space w-full px-3 py-3 border border-blue-300 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-blue-50/30"
+                            placeholder="Contoh: 1"
+                            min="0"
+                            step="0.1"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">🔢 Maks Beli (opsional)</label>
+                        <input 
+                            type="number" 
+                            class="item-max w-full px-3 py-3 border border-gray-300 rounded-lg text-sm focus:border-gray-500 focus:ring-2 focus:ring-gray-100 transition-all"
+                            placeholder="Contoh: 10"
+                            min="0"
+                        >
+                    </div>
+                </div>
+            `;
+            
+            // Add delete functionality
+            const deleteBtn = row.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', () => {
+                if (itemsList.children.length > 1) {
+                    row.remove();
+                    itemsData.delete(itemId);
+                    updateItemNumbers();
+                } else {
+                    alert('⚠️ Minimal harus ada 1 barang dalam daftar!');
+                }
+            });
+            
+            return row;
+        }
+
+        function updateItemNumbers() {
+            const rows = itemsList.querySelectorAll('[data-item-id]');
+            rows.forEach((row, index) => {
+                const badge = row.querySelector('.w-6.h-6');
+                const label = row.querySelector('.text-sm.font-bold');
+                if (badge) badge.textContent = index + 1;
+                if (label) {
+                    label.innerHTML = `
+                        <span class="w-6 h-6 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center text-white text-xs">${index + 1}</span>
+                        Barang #${index + 1}
+                    `;
+                }
+            });
+        }
+
+        // Add initial empty row
+        itemsList.appendChild(createItemRow());
+
+        // Add new item button
+        addItemBtn.addEventListener('click', () => {
+            itemsList.appendChild(createItemRow());
+            // Scroll to new item
+            itemsList.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        // ============ CALCULATION LOGIC ============
+        calculateBtn.addEventListener('click', () => {
+            // Hide previous results
+            resultsSection.classList.add('hidden');
+            noSolutionSection.classList.add('hidden');
+            
+            // Get constraints
+            const maxCapital = parseFloat(document.getElementById('maxCapital').value);
+            const maxSpace = parseFloat(document.getElementById('maxSpace').value);
+            
+            // Validate constraints
+            if (!maxCapital || maxCapital <= 0) {
+                alert('⚠️ Mohon isi Total Uang Belanja dengan benar!');
+                document.getElementById('maxCapital').focus();
+                return;
+            }
+            
+            if (!maxSpace || maxSpace <= 0) {
+                alert('⚠️ Mohon isi Kapasitas Angkut/Gudang dengan benar!');
+                document.getElementById('maxSpace').focus();
+                return;
+            }
+            
+            // Collect items data
+            const items = [];
+            const rows = itemsList.querySelectorAll('[data-item-id]');
+            
+            let hasValidItem = false;
+            
+            rows.forEach((row, index) => {
+                const name = row.querySelector('.item-name').value.trim() || `Barang ${index + 1}`;
+                const profit = parseFloat(row.querySelector('.item-profit').value) || 0;
+                const capital = parseFloat(row.querySelector('.item-capital').value) || 0;
+                const space = parseFloat(row.querySelector('.item-space').value) || 0;
+                const maxBuy = parseFloat(row.querySelector('.item-max').value) || null;
+                
+                if (capital > 0 && space > 0 && profit >= 0) {
+                    hasValidItem = true;
+                    items.push({
+                        id: row.dataset.itemId,
+                        name,
+                        profit,
+                        capital,
+                        space,
+                        maxBuy
+                    });
+                }
+            });
+            
+            if (!hasValidItem) {
+                alert('⚠️ Mohon isi data barang terlebih dahulu!\n\nPastikan Modal dan Berat/Ukuran terisi dengan benar.');
+                return;
+            }
+            
+            // Build LP model
+            const model = {
+                optimize: "profit",
+                opType: "max",
+                constraints: {
+                    capital: { max: maxCapital },
+                    space: { max: maxSpace }
+                },
+                variables: {},
+                ints: {}
+            };
+            
+            // Add item-specific max constraints and variables
+            items.forEach(item => {
+                // Define variable coefficients
+                model.variables[item.id] = {
+                    profit: item.profit,
+                    capital: item.capital,
+                    space: item.space
+                };
+                
+                // Add self-reference for individual max constraint
+                model.variables[item.id][item.id] = 1;
+                
+                // Add max buy constraint if specified
+                if (item.maxBuy && item.maxBuy > 0) {
+                    model.constraints[item.id] = { max: item.maxBuy };
+                }
+                
+                // Force integer results
+                model.ints[item.id] = 1;
+            });
+            
+            console.log('LP Model:', JSON.stringify(model, null, 2));
+            
+            // Solve the model
+            let result;
+            try {
+                result = solver.Solve(model);
+                console.log('Solver Result:', result);
+            } catch (error) {
+                console.error('Solver Error:', error);
+                alert('❌ Terjadi kesalahan saat menghitung. Silakan coba lagi.');
+                return;
+            }
+            
+            // Check if solution is feasible
+            if (!result.feasible) {
+                noSolutionSection.classList.remove('hidden');
+                noSolutionSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            
+            // Parse results
+            const selectedItems = [];
+            const notSelectedItems = [];
+            let totalCapitalUsed = 0;
+            let totalSpaceUsed = 0;
+            let totalProfit = 0;
+            
+            items.forEach(item => {
+                const quantity = result[item.id] || 0;
+                
+                if (quantity > 0) {
+                    const itemTotalCapital = quantity * item.capital;
+                    const itemTotalProfit = quantity * item.profit;
+                    
+                    selectedItems.push({
+                        ...item,
+                        quantity,
+                        totalCapital: itemTotalCapital,
+                        totalProfit: itemTotalProfit,
+                        totalSpace: quantity * item.space
+                    });
+                    
+                    totalCapitalUsed += itemTotalCapital;
+                    totalSpaceUsed += quantity * item.space;
+                    totalProfit += itemTotalProfit;
+                } else {
+                    notSelectedItems.push(item);
+                }
+            });
+            
+            // Update UI
+            displayResults(selectedItems, notSelectedItems, totalCapitalUsed, totalSpaceUsed, totalProfit, maxCapital, maxSpace);
+        });
+
+        function displayResults(selectedItems, notSelectedItems, totalCapitalUsed, totalSpaceUsed, totalProfit, maxCapital, maxSpace) {
+            // Show results section
+            resultsSection.classList.remove('hidden');
+            
+            // Update usage bars
+            const capitalPercent = Math.min((totalCapitalUsed / maxCapital) * 100, 100);
+            const spacePercent = Math.min((totalSpaceUsed / maxSpace) * 100, 100);
+            
+            document.getElementById('capitalUsageBar').style.width = `${capitalPercent}%`;
+            document.getElementById('capitalUsageText').textContent = `${formatRupiah(totalCapitalUsed)} dari ${formatRupiah(maxCapital)}`;
+            document.getElementById('capitalPercent').textContent = `${capitalPercent.toFixed(1)}%`;
+            
+            document.getElementById('spaceUsageBar').style.width = `${spacePercent}%`;
+            document.getElementById('spaceUsageText').textContent = `${formatNumber(totalSpaceUsed)} dari ${formatNumber(maxSpace)}`;
+            document.getElementById('spacePercent').textContent = `${spacePercent.toFixed(1)}%`;
+            
+            // Update results table
+            const tableBody = document.getElementById('resultsTableBody');
+            tableBody.innerHTML = '';
+            
+            selectedItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-gray-900">${item.name}</div>
+                        <div class="text-xs text-gray-500">${formatRupiah(item.capital)}/unit × ${item.space} ukuran</div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center justify-center w-10 h-10 bg-emerald-100 text-emerald-700 font-bold rounded-full">${item.quantity}</span>
+                    </td>
+                    <td class="px-4 py-3 text-right font-medium text-gray-700">${formatRupiah(item.totalCapital)}</td>
+                    <td class="px-4 py-3 text-right font-bold text-emerald-600">${formatRupiah(item.totalProfit)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Add total row
+            const totalRow = document.createElement('tr');
+            totalRow.className = 'bg-gray-100 font-bold';
+            totalRow.innerHTML = `
+                <td class="px-4 py-3 text-gray-800">TOTAL</td>
+                <td class="px-4 py-3 text-center text-gray-800">${selectedItems.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                <td class="px-4 py-3 text-right text-gray-800">${formatRupiah(totalCapitalUsed)}</td>
+                <td class="px-4 py-3 text-right text-emerald-600">${formatRupiah(totalProfit)}</td>
+            `;
+            tableBody.appendChild(totalRow);
+            
+            // Update total profit display
+            document.getElementById('totalProfitDisplay').textContent = formatRupiah(totalProfit);
+            
+            // Handle not selected items
+            const notSelectedSection = document.getElementById('notSelectedSection');
+            const notSelectedList = document.getElementById('notSelectedList');
+            
+            if (notSelectedItems.length > 0) {
+                notSelectedSection.classList.remove('hidden');
+                notSelectedList.innerHTML = '';
+                
+                notSelectedItems.forEach(item => {
+                    const tag = document.createElement('span');
+                    tag.className = 'inline-flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-full';
+                    tag.innerHTML = `
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        ${item.name}
+                    `;
+                    notSelectedList.appendChild(tag);
+                });
+            } else {
+                notSelectedSection.classList.add('hidden');
+            }
+            
+            // Scroll to results
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
